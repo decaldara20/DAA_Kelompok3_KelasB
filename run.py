@@ -1,18 +1,17 @@
+import tracemalloc
 import json
 import argparse
 import time
 import heapq
 from typing import Any
 
-# --- IMPLEMENTASI ALGORITMA ---
-
+# --- IMPLEMENTASI ALGORITMA A: DIJKSTRA HEAP (O(E log V)) ---
 def algo_A_Heap(instance: Any) -> float:
-    """Dijkstra menggunakan Priority Queue (Min-Heap) - O(E log V)"""
+    """Dijkstra menggunakan Priority Queue (Min-Heap)"""
     graph = instance['graph']
-    start = str(instance['meta']['start_node']) # JSON keys are strings
+    # Pastikan node start/end dibaca sebagai string agar cocok dengan key JSON
+    start = str(instance['meta']['start_node']) 
     end = str(instance['meta']['end_node'])
-    
-    # Struktur graph di JSON: {'u': {'v': w, ...}}
     
     distances = {node: float('inf') for node in graph}
     distances[start] = 0
@@ -27,12 +26,11 @@ def algo_A_Heap(instance: Any) -> float:
         if curr_dist > distances.get(curr_node, float('inf')):
             continue
         
-        # Get neighbors
         neighbors = graph.get(curr_node, {})
         for neighbor, weight in neighbors.items():
             new_dist = curr_dist + weight
             
-            # Handle node baru (jika ada node yg belum terinit di distances)
+            # Handle node baru jika belum ada di distances
             if neighbor not in distances:
                 distances[neighbor] = float('inf')
                 
@@ -42,8 +40,9 @@ def algo_A_Heap(instance: Any) -> float:
                 
     return distances.get(end, float('inf'))
 
+# --- IMPLEMENTASI ALGORITMA B: DIJKSTRA ARRAY (O(V^2)) ---
 def algo_B_Array(instance: Any) -> float:
-    """Dijkstra menggunakan Array/Linear Scan - O(V^2)"""
+    """Dijkstra menggunakan Array/Linear Scan"""
     graph = instance['graph']
     start = str(instance['meta']['start_node'])
     end = str(instance['meta']['end_node'])
@@ -57,11 +56,8 @@ def algo_B_Array(instance: Any) -> float:
     unvisited[start] = 0
     
     while unvisited:
-        # --- LINEAR SCAN (Bottleneck) ---
-        # Mencari node dengan jarak terpendek secara manual
-        # Ini menggantikan heapq.heappop
-        
-        # Validasi unvisited tidak kosong dan ambil minimum
+        # --- LINEAR SCAN (Bottleneck O(V)) ---
+        # Mencari node dengan jarak minimum secara manual loop
         current_node = None
         min_val = float('inf')
         
@@ -72,6 +68,7 @@ def algo_B_Array(instance: Any) -> float:
         
         if current_node is None: # Sisa node infinity (tidak terjangkau)
             break
+            
         if current_node == end:
             return distances[end]
             
@@ -90,16 +87,13 @@ def algo_B_Array(instance: Any) -> float:
     return distances.get(end, float('inf'))
 
 # --- EVALUATOR ---
-
 def evaluate(instance, result, project):
-    # Untuk shortest path, kita cek apakah hasilnya bukan Infinity
-    # (Idealnya dibandingkan dengan hasil NetworkX, tapi di sini kita cek feasibility saja)
+    # Jika result infinity, berarti gagal menemukan jalur
     if result == float('inf'):
-        return 1.0 # Error/Not Found (Gap besar)
+        return 1.0 # Error/Not Found
     return 0.0 # Valid found
 
-# --- MAIN DRIVER (Sesuai PDF Dosen) ---
-
+# --- MAIN DRIVER ---
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--instance', required=True, help='Path ke file JSON')
@@ -107,10 +101,17 @@ def main():
     args = p.parse_args()
     
     # 1. Load Data
-    with open(args.instance, 'r') as f:
-        inst = json.load(f)
+    try:
+        with open(args.instance, 'r') as f:
+            inst = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: File {args.instance} tidak ditemukan.")
+        return
     
     project = inst.get("project", "unknown")
+
+    # Mulai Tracking Memori
+    tracemalloc.start()
     
     # 2. Run Algorithm & Timing
     t0 = time.perf_counter()
@@ -118,14 +119,20 @@ def main():
         out = algo_A_Heap(inst)
     else:
         out = algo_B_Array(inst)
-    dt = (time.perf_counter() - t0) * 1000.0 # ke milidetik
+    t1 = time.perf_counter()
+    dt = (t1 - t0) * 1000.0 # milidetik
+
+    # Ambil Snapshot Memori Puncak
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
+    peak_mb = peak / (1024 * 1024) # Konversi Bytes ke MB (Megabytes)
     
     # 3. Evaluate
     gap = evaluate(inst, out, project)
     
-    # 4. Print Result (Format Wajib untuk Parsing Otomatis Dosen)
-    # Output: Project=... Algo=... Time_ms=... Gap=... Result=...
-    print(f"Project={project} Algo={args.algo} Time_ms={dt:.2f} Gap={gap:.4f} Result={out}")
+    # 4. Print Result (Wajib format ini untuk laporan/parsing)
+    print(f"Project={project} Algo={args.algo} Time_ms={dt:.2f} Peak_Memory_MB={peak_mb:.6f} Result={out:.2f}")
 
 if __name__ == '__main__':
     main()

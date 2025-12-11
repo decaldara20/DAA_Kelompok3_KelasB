@@ -9,6 +9,9 @@ Cara pakai (Single Instance):
 python run.py --instance data/solo_route_G01.json --algo A
 python run.py --instance data/solo_route_G01.json --algo B
 
+--Rute visualisasi
+python visualize_route.py --instance data/solo_route_G01.json
+
 Cara pakai (Batch Experiment):
 python run_batch.py
 
