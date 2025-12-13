@@ -13,7 +13,7 @@ RESULTS_DIR = Path('results')
 RESULTS_DIR.mkdir(exist_ok=True)
 
 def run_experiments():
-    print("=== MEMULAI EKSPERIMEN BATCH (DEBUG MODE) ===")
+    print("=== MEMULAI EKSPERIMEN BATCH (DEBUG MODE + VISITED COUNT) ===")
     
     # Cek apakah folder data ada isinya
     instance_files = sorted(list(DATA_DIR.glob('*.json')))
@@ -24,9 +24,10 @@ def run_experiments():
 
     results = []
     
-    print("-" * 100)
-    print(f"{'Instance':<20} | {'Algo':<5} | {'Time (ms)':<10} | {'Mem (MB)':<10} | {'Result':<10}")
-    print("-" * 100)
+    # [UBAH] Header diperlebar untuk kolom Visited
+    print("-" * 115)
+    print(f"{'Instance':<20} | {'Algo':<5} | {'Time (ms)':<10} | {'Mem (MB)':<10} | {'Visited':<8} | {'Result':<10}")
+    print("-" * 115)
 
     for json_file in instance_files:
         try:
@@ -39,7 +40,10 @@ def run_experiments():
             # --- Algo A (HEAP) ---
             tracemalloc.start()
             t0 = time.perf_counter()
-            res_A = algo_A_Heap(inst)
+            
+            # [UBAH] Menangkap 2 nilai return: Jarak dan Visited Count
+            dist_A, vis_A = algo_A_Heap(inst)
+            
             t1 = time.perf_counter()
             _, peak_A = tracemalloc.get_traced_memory()
             tracemalloc.stop()
@@ -49,14 +53,19 @@ def run_experiments():
             
             results.append({
                 'instance': name, 'n_nodes': n_nodes, 'algo': 'Heap',
-                'time_ms': time_A, 'memory_mb': mem_A, 'result': res_A
+                'time_ms': time_A, 'memory_mb': mem_A, 
+                'visited': vis_A, 'result': dist_A
             })
-            print(f"{name:<20} | {'Heap':<5} | {time_A:8.4f} ms | {mem_A:8.4f} MB | {res_A:<10.2f}")
+            # [UBAH] Print output dengan kolom Visited
+            print(f"{name:<20} | {'Heap':<5} | {time_A:8.4f} ms | {mem_A:8.4f} MB | {vis_A:<8} | {dist_A:<10.2f}")
 
             # --- Algo B (ARRAY) ---
             tracemalloc.start()
             t0 = time.perf_counter()
-            res_B = algo_B_Array(inst)
+            
+            # [UBAH] Menangkap 2 nilai return
+            dist_B, vis_B = algo_B_Array(inst)
+            
             t1 = time.perf_counter()
             _, peak_B = tracemalloc.get_traced_memory()
             tracemalloc.stop()
@@ -66,9 +75,11 @@ def run_experiments():
             
             results.append({
                 'instance': name, 'n_nodes': n_nodes, 'algo': 'Array',
-                'time_ms': time_B, 'memory_mb': mem_B, 'result': res_B
+                'time_ms': time_B, 'memory_mb': mem_B, 
+                'visited': vis_B, 'result': dist_B
             })
-            print(f"{name:<20} | {'Arr':<5} | {time_B:8.4f} ms | {mem_B:8.4f} MB | {res_B:<10.2f}")
+            # [UBAH] Print output dengan kolom Visited
+            print(f"{name:<20} | {'Arr':<5} | {time_B:8.4f} ms | {mem_B:8.4f} MB | {vis_B:<8} | {dist_B:<10.2f}")
             
         except Exception as e:
             print(f"[ERROR] Gagal memproses {json_file.name}: {e}")
@@ -83,7 +94,7 @@ def run_experiments():
     
     try:
         df.to_csv(output_csv, index=False)
-        print("-" * 100)
+        print("-" * 115)
         print(f"[SUKSES] Data tersimpan di: {output_csv.absolute()}")
     except Exception as e:
         print(f"[ERROR] Gagal menyimpan CSV: {e}")

@@ -4,12 +4,12 @@ import argparse
 import time
 import heapq
 from typing import Any
+import sys
 
 # --- IMPLEMENTASI ALGORITMA A: DIJKSTRA HEAP (O(E log V)) ---
-def algo_A_Heap(instance: Any) -> float:
+def algo_A_Heap(instance: Any):
     """Dijkstra menggunakan Priority Queue (Min-Heap)"""
     graph = instance['graph']
-    # Pastikan node start/end dibaca sebagai string agar cocok dengan key JSON
     start = str(instance['meta']['start_node']) 
     end = str(instance['meta']['end_node'])
     
@@ -17,20 +17,26 @@ def algo_A_Heap(instance: Any) -> float:
     distances[start] = 0
     pq = [(0, start)]
     
+    # [TAMBAHAN] Inisialisasi Counter
+    visited_count = 0
+    
     while pq:
         curr_dist, curr_node = heapq.heappop(pq)
         
-        if curr_node == end:
-            return curr_dist
-        
+        # Skip jika data usang (stale entry)
         if curr_dist > distances.get(curr_node, float('inf')):
             continue
+
+        # [TAMBAHAN] Hitung node yang benar-benar diproses
+        visited_count += 1
+        
+        if curr_node == end:
+            return curr_dist, visited_count
         
         neighbors = graph.get(curr_node, {})
         for neighbor, weight in neighbors.items():
             new_dist = curr_dist + weight
             
-            # Handle node baru jika belum ada di distances
             if neighbor not in distances:
                 distances[neighbor] = float('inf')
                 
@@ -38,10 +44,10 @@ def algo_A_Heap(instance: Any) -> float:
                 distances[neighbor] = new_dist
                 heapq.heappush(pq, (new_dist, neighbor))
                 
-    return distances.get(end, float('inf'))
+    return distances.get(end, float('inf')), visited_count
 
 # --- IMPLEMENTASI ALGORITMA B: DIJKSTRA ARRAY (O(V^2)) ---
-def algo_B_Array(instance: Any) -> float:
+def algo_B_Array(instance: Any):
     """Dijkstra menggunakan Array/Linear Scan"""
     graph = instance['graph']
     start = str(instance['meta']['start_node'])
@@ -51,13 +57,14 @@ def algo_B_Array(instance: Any) -> float:
     distances = {node: float('inf') for node in nodes}
     distances[start] = 0
     
-    # Unvisited set (simulasi array linear)
     unvisited = {node: float('inf') for node in nodes}
     unvisited[start] = 0
     
+    # [TAMBAHAN] Inisialisasi Counter
+    visited_count = 0
+    
     while unvisited:
-        # --- LINEAR SCAN (Bottleneck O(V)) ---
-        # Mencari node dengan jarak minimum secara manual loop
+        # --- LINEAR SCAN ---
         current_node = None
         min_val = float('inf')
         
@@ -66,32 +73,32 @@ def algo_B_Array(instance: Any) -> float:
                 min_val = dist
                 current_node = node
         
-        if current_node is None: # Sisa node infinity (tidak terjangkau)
+        if current_node is None: 
             break
+        
+        # [TAMBAHAN] Hitung node yang dipilih (dikunjungi)
+        visited_count += 1
             
         if current_node == end:
-            return distances[end]
+            return distances[end], visited_count
             
-        # Hapus dari unvisited
         del unvisited[current_node]
         
-        # Update neighbors
         neighbors = graph.get(current_node, {})
         for neighbor, weight in neighbors.items():
             if neighbor in unvisited:
                 new_dist = distances[current_node] + weight
                 if new_dist < distances[neighbor]:
                     distances[neighbor] = new_dist
-                    unvisited[neighbor] = new_dist # Update nilai di 'array'
+                    unvisited[neighbor] = new_dist 
                     
-    return distances.get(end, float('inf'))
+    return distances.get(end, float('inf')), visited_count
 
 # --- EVALUATOR ---
 def evaluate(instance, result, project):
-    # Jika result infinity, berarti gagal menemukan jalur
     if result == float('inf'):
-        return 1.0 # Error/Not Found
-    return 0.0 # Valid found
+        return 1.0 
+    return 0.0
 
 # --- MAIN DRIVER ---
 def main():
@@ -100,39 +107,40 @@ def main():
     p.add_argument('--algo', choices=['A', 'B'], default='A', help='A=Heap, B=Array')
     args = p.parse_args()
     
-    # 1. Load Data
     try:
         with open(args.instance, 'r') as f:
             inst = json.load(f)
     except FileNotFoundError:
         print(f"Error: File {args.instance} tidak ditemukan.")
-        return
+        sys.exit(1)
+    except json.JSONDecodeError:
+        print(f"Error: File {args.instance} bukan JSON yang valid.")
+        sys.exit(1)
     
     project = inst.get("project", "unknown")
 
-    # Mulai Tracking Memori
     tracemalloc.start()
     
-    # 2. Run Algorithm & Timing
     t0 = time.perf_counter()
+    
+    # [TAMBAHAN] Menangkap 2 variabel return (Result dan Visited)
     if args.algo == 'A':
-        out = algo_A_Heap(inst)
+        out, visited = algo_A_Heap(inst)
     else:
-        out = algo_B_Array(inst)
+        out, visited = algo_B_Array(inst)
+        
     t1 = time.perf_counter()
-    dt = (t1 - t0) * 1000.0 # milidetik
+    dt = (t1 - t0) * 1000.0 
 
-    # Ambil Snapshot Memori Puncak
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    peak_mb = peak / (1024 * 1024) # Konversi Bytes ke MB (Megabytes)
+    peak_mb = peak / (1024 * 1024)
     
-    # 3. Evaluate
     gap = evaluate(inst, out, project)
     
-    # 4. Print Result (Wajib format ini untuk laporan/parsing)
-    print(f"Project={project} Algo={args.algo} Time_ms={dt:.2f} Peak_Memory_MB={peak_mb:.6f} Result={out:.2f}")
+    # [TAMBAHAN] Update Print agar menampilkan Visited
+    print(f"Project={project} Algo={args.algo} Time_ms={dt:.2f} Peak_Memory_MB={peak_mb:.6f} Visited={visited} Result={out:.2f}")
 
 if __name__ == '__main__':
     main()
