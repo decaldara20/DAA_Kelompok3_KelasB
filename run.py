@@ -3,8 +3,45 @@ import json
 import argparse
 import time
 import heapq
+import math  # [BARU] Import math untuk logaritma
 from typing import Any
 import sys
+
+# --- FUNGSI ANALISIS TEORITIS (Fitur Presentasi) ---
+def analyze_complexity(graph, algo_type):
+    """
+    Menghitung estimasi operasi teoritis untuk 'pamer' ke dosen.
+    Ini membuktikan kita paham bedanya V^2 dan E log V.
+    """
+    V = len(graph)
+    # Menghitung total Edges (E)
+    E = sum(len(neighbors) for neighbors in graph.values())
+    
+    print(f"\n--- [STATISTIK GRAF & ANALISIS] ---")
+    print(f"  Nodes (V) : {V}")
+    print(f"  Edges (E) : {E}")
+    
+    if algo_type == 'A':
+        print(f"  Algoritma : A (Dijkstra Min-Heap)")
+        print(f"  Kompleksitas : O(E log V)")
+        
+        # Estimasi beban kerja Heap
+        # log2(V) adalah biaya rata-rata push/pop heap
+        if V > 0:
+            est_ops = E * math.log2(V)
+            print(f"  Est. Operasi : {E} * log2({V}) ≈ {int(est_ops):,} instruksi dasar")
+        else:
+            print("  Est. Operasi : 0")
+            
+    else:
+        print(f"  Algoritma : B (Dijkstra Array/Linear)")
+        print(f"  Kompleksitas : O(V^2)")
+        
+        # Estimasi beban kerja Array
+        est_ops = V * V
+        print(f"  Est. Operasi : {V}^2 = {int(est_ops):,} instruksi dasar")
+        
+    print(f"-----------------------------------\n")
 
 # --- IMPLEMENTASI ALGORITMA A: DIJKSTRA HEAP (O(E log V)) ---
 def algo_A_Heap(instance: Any):
@@ -17,23 +54,24 @@ def algo_A_Heap(instance: Any):
     distances[start] = 0
     pq = [(0, start)]
     
-    # [TAMBAHAN] Inisialisasi Counter
     visited_count = 0
     
+    # Loop berjalan selama PQ tidak kosong
     while pq:
+        # [STEP 1] Extract Min: O(log V) - Sangat Cepat
         curr_dist, curr_node = heapq.heappop(pq)
         
-        # Skip jika data usang (stale entry)
+        # Lazy Deletion Check
         if curr_dist > distances.get(curr_node, float('inf')):
             continue
 
-        # [TAMBAHAN] Hitung node yang benar-benar diproses
         visited_count += 1
         
         if curr_node == end:
             return curr_dist, visited_count
         
         neighbors = graph.get(curr_node, {})
+        # Loop Tetangga: Total berjalan E kali sepanjang algoritma
         for neighbor, weight in neighbors.items():
             new_dist = curr_dist + weight
             
@@ -42,6 +80,7 @@ def algo_A_Heap(instance: Any):
                 
             if new_dist < distances[neighbor]:
                 distances[neighbor] = new_dist
+                # [STEP 2] Insert Heap: O(log V)
                 heapq.heappush(pq, (new_dist, neighbor))
                 
     return distances.get(end, float('inf')), visited_count
@@ -60,11 +99,12 @@ def algo_B_Array(instance: Any):
     unvisited = {node: float('inf') for node in nodes}
     unvisited[start] = 0
     
-    # [TAMBAHAN] Inisialisasi Counter
     visited_count = 0
     
+    # Loop Utama: Berjalan V kali
     while unvisited:
-        # --- LINEAR SCAN ---
+        # [STEP 1] Linear Scan: O(V) - INI BIANG KEROK KELAMBATAN
+        # Kita harus cek satu-satu semua node di 'unvisited'
         current_node = None
         min_val = float('inf')
         
@@ -76,7 +116,6 @@ def algo_B_Array(instance: Any):
         if current_node is None: 
             break
         
-        # [TAMBAHAN] Hitung node yang dipilih (dikunjungi)
         visited_count += 1
             
         if current_node == end:
@@ -84,6 +123,7 @@ def algo_B_Array(instance: Any):
             
         del unvisited[current_node]
         
+        # Relaksasi Tetangga
         neighbors = graph.get(current_node, {})
         for neighbor, weight in neighbors.items():
             if neighbor in unvisited:
@@ -119,11 +159,14 @@ def main():
     
     project = inst.get("project", "unknown")
 
+    # [BARU] Panggil Analisis Kompleksitas sebelum eksekusi
+    # Ini akan mencetak estimasi beban kerja ke layar
+    analyze_complexity(inst['graph'], args.algo)
+
     tracemalloc.start()
     
     t0 = time.perf_counter()
     
-    # [TAMBAHAN] Menangkap 2 variabel return (Result dan Visited)
     if args.algo == 'A':
         out, visited = algo_A_Heap(inst)
     else:
@@ -139,7 +182,6 @@ def main():
     
     gap = evaluate(inst, out, project)
     
-    # [TAMBAHAN] Update Print agar menampilkan Visited
     print(f"Project={project} Algo={args.algo} Time_ms={dt:.2f} Peak_Memory_MB={peak_mb:.6f} Visited={visited} Result={out:.2f}")
 
 if __name__ == '__main__':
